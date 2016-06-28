@@ -3,3 +3,5 @@ a.out
 a.exe
 .*.sw?
 *.log
+cscope.*
+tags
