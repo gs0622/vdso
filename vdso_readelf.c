@@ -4,7 +4,7 @@
  * Subject to the GNU General Public License, version 2
  *
  * Compile with:
- * gcc -std=gnu99 vdso_readerlf.c parse_vdso.c
+ * gcc -std=gnu99 vdso_readelf.c parse_vdso.c
  *
  */
 
@@ -13,14 +13,20 @@
 #include <stdio.h>
 #include <sys/auxv.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <inttypes.h>
+#include <time.h>
 
-extern void *vdso_sym(const char *version, const char *name);
-extern void vdso_init_from_sysinfo_ehdr(uintptr_t base);
-extern void vdso_init_from_auxv(void *auxv);
+#include "parse_vdso.h"
 
 int main(int argc, char **argv)
 {
+	char s[32];
+	struct vdso_info *p = &vdso_info;
 	unsigned long sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
+	typedef int (*func_t)();
+	func_t func;
+
 	if (!sysinfo_ehdr) {
 		printf("AT_SYSINFO_EHDR is not present!\n");
 		return 0;
@@ -28,24 +34,40 @@ int main(int argc, char **argv)
 
 	vdso_init_from_sysinfo_ehdr(getauxval(AT_SYSINFO_EHDR));
 
-	/* Find gettimeofday. */
-	typedef long (*gtod_t)(struct timeval *tv, struct timezone *tz);
-	gtod_t gtod = (gtod_t)vdso_sym("LINUX_2.6", "__vdso_gettimeofday");
+	printf("%-16p\t%-20s\n\n", (void *)p->load_addr, "vdso address");
+	printf("%-16s\t%-20s\n", "Address", "Name");
 
-	if (!gtod) {
-		printf("Could not find __vdso_gettimeofday\n");
-		return 1;
-	}
+	strcpy(s, "clock_gettime");
+	func = (func_t)vdso_sym("LINUX_2.6", s);
+	printf("%-16p\t%-20s\n", func, s);
 
-	struct timeval tv;
-	long ret = gtod(&tv, 0);
+	strcpy(s, "__vdso_gettimeofday");
+	func = (func_t)vdso_sym("LINUX_2.6", s);
+	printf("%-16p\t%-20s\n", func, s);
 
-	if (ret == 0) {
-		printf("The time is %lld.%06lld\n",
-		       (long long)tv.tv_sec, (long long)tv.tv_usec);
-	} else {
-		printf("__vdso_gettimeofday failed\n");
-	}
+	strcpy(s, "__vdso_getcpu");
+	func = (func_t)vdso_sym("LINUX_2.6", s);
+	printf("%-16p\t%-20s\n", func, s);
+
+	strcpy(s, "gettimeofday");
+	func = (func_t)vdso_sym("LINUX_2.6", s);
+	printf("%-16p\t%-20s\n", func, s);
+
+	strcpy(s, "time");
+	func = (func_t)vdso_sym("LINUX_2.6", s);
+	printf("%-16p\t%-20s\n", func, s);
+
+	strcpy(s, "getcpu");
+	func = (func_t)vdso_sym("LINUX_2.6", s);
+	printf("%-16p\t%-20s\n", func, s);
+
+	strcpy(s, "__vdso_clock_gettime");
+	func = (func_t)vdso_sym("LINUX_2.6", s);
+	printf("%-16p\t%-20s\n", func, s);
+
+	strcpy(s, "__vdso_time");
+	func = (func_t)vdso_sym("LINUX_2.6", s);
+	printf("%-16p\t%-20s\n", func, s);
 
 	return 0;
 }
